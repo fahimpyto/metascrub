@@ -30,6 +30,7 @@ AI_TEXT_CHUNK_KEYS = {
 }
 
 AI_CHUNK_TYPES = {b'caBX', b'caMs', b'caSt'}
+CANVA_SOFTWARE_KEYWORDS = {"software", "creator", "generator"}
 
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
 RIFF_SIGNATURE = b'RIFF'
@@ -50,6 +51,7 @@ def _detect_png_ai(data: bytes) -> dict:
     pos = 8
     text_keys = set()
     chunk_types = set()
+    canva_found = False
     while pos + 8 <= len(data):
         length = struct.unpack('>I', data[pos:pos+4])[0]
         chunk_type = data[pos+4:pos+8]
@@ -62,14 +64,38 @@ def _detect_png_ai(data: bytes) -> dict:
                 keyword = chunk_data[:null_pos].decode('latin-1', errors='replace').lower()
                 if keyword in AI_TEXT_CHUNK_KEYS:
                     text_keys.add(keyword)
+                if keyword in CANVA_SOFTWARE_KEYWORDS:
+                    val = chunk_data[null_pos+1:].decode('latin-1', errors='replace').lower()
+                    if 'canva' in val:
+                        canva_found = True
         pos += 12 + length
     if text_keys or chunk_types:
         return {"is_ai": True, "tool": _identify_tool(text_keys, chunk_types)}
+    if canva_found:
+        return {"is_ai": True, "tool": "Canva"}
     return {"is_ai": False, "tool": None}
+
+
+def _jpeg_check_canva(exif_dict: dict) -> bool:
+    import piexif
+    canva_tags = {piexif.ImageIFD.Software, piexif.ImageIFD.ImageDescription,
+                  piexif.ExifIFD.UserComment, piexif.ImageIFD.XPComment}
+    for ifd_name in ('0th', 'Exif', 'GPS', '1st'):
+        ifd = exif_dict.get(ifd_name, {})
+        for tag_id, value in ifd.items():
+            if isinstance(value, bytes):
+                try:
+                    if 'canva' in value.decode('utf-8', errors='replace').lower():
+                        if tag_id in canva_tags:
+                            return True
+                except Exception:
+                    pass
+    return False
 
 
 def _detect_jpeg_ai(data: bytes) -> dict:
     signatures_found = []
+    canva_found = False
     pos = 2
     while pos + 4 <= len(data):
         if data[pos] != 0xFF:
@@ -97,6 +123,8 @@ def _detect_jpeg_ai(data: bytes) -> dict:
                 for sig in AI_SOFTWARE_SIGNATURES:
                     if sig in xmp_text.decode('latin-1', errors='replace'):
                         signatures_found.append(sig)
+                if b'canva' in xmp_text:
+                    canva_found = True
             elif seg_data.startswith(b'Exif\x00\x00'):
                 try:
                     import piexif
@@ -109,6 +137,8 @@ def _detect_jpeg_ai(data: bytes) -> dict:
                                 for sig in AI_SOFTWARE_SIGNATURES:
                                     if sig in val_lower:
                                         signatures_found.append(sig)
+                    if _jpeg_check_canva(exif_dict):
+                        canva_found = True
                 except Exception:
                     pass
         elif marker == 0xEB:
@@ -119,6 +149,8 @@ def _detect_jpeg_ai(data: bytes) -> dict:
         pos += 2 + length
     if signatures_found:
         return {"is_ai": True, "tool": signatures_found[0] if signatures_found[0] != "c2pa" else "C2PA"}
+    if canva_found:
+        return {"is_ai": True, "tool": "Canva"}
     return {"is_ai": False, "tool": None}
 
 
@@ -141,6 +173,8 @@ def _detect_webp_ai(data: bytes) -> dict:
                             for sig in AI_SOFTWARE_SIGNATURES:
                                 if sig in val_lower:
                                     return {"is_ai": True, "tool": sig}
+                if _jpeg_check_canva(exif_dict):
+                    return {"is_ai": True, "tool": "Canva"}
     except Exception:
         pass
     xmp_start = data.find(b'XMP ')
@@ -149,6 +183,8 @@ def _detect_webp_ai(data: bytes) -> dict:
         for sig in AI_SOFTWARE_SIGNATURES:
             if sig in xmp_data.decode('latin-1', errors='replace'):
                 return {"is_ai": True, "tool": sig}
+        if b'canva' in xmp_data:
+            return {"is_ai": True, "tool": "Canva"}
     return {"is_ai": False, "tool": None}
 
 

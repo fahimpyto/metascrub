@@ -16,7 +16,7 @@ def get_format(path: Path) -> str | None:
     return IMAGE_EXTENSIONS.get(path.suffix.lower())
 
 
-def clean_image(data: bytes, fmt: str, organic: bool = False) -> bytes:
+def clean_image(data: bytes, fmt: str, organic: bool | bytes = False) -> bytes:
     if fmt == 'png':
         return png_cleaner.clean_png(data, organic=organic)
     elif fmt == 'jpeg':
@@ -26,7 +26,7 @@ def clean_image(data: bytes, fmt: str, organic: bool = False) -> bytes:
     raise ValueError(f"Unsupported format: {fmt}")
 
 
-def clean_file(path: Path, organic: bool = False, in_place: bool = True, output_dir: Path | None = None) -> Path:
+def clean_file(path: Path, organic: bool | bytes = False, in_place: bool = True, output_dir: Path | None = None) -> Path:
     fmt = get_format(path)
     if not fmt:
         raise ValueError(f"Unsupported file type: {path.suffix}")

@@ -1,7 +1,7 @@
 import struct
 
 
-def clean_webp(data: bytes, organic: bool = False) -> bytes:
+def clean_webp(data: bytes, organic: bool | bytes = False) -> bytes:
     if not data.startswith(b'RIFF') or data[8:12] != b'WEBP':
         raise ValueError("Not a valid WebP file")
 
@@ -46,13 +46,13 @@ def clean_webp(data: bytes, organic: bool = False) -> bytes:
                     break
 
         if organic:
-            from metascrub.injector import make_organic_exif_blob
-            width = struct.unpack('<I', vp8x_data[4:8] & 0xFFFFFF)[0] + 1
-            height = struct.unpack('<I', vp8x_data[4:8] >> 24 & 0xFFFFFF)[0] + 1
-            # actually VP8X has width/height stored as 3-byte little-endian
-            w = struct.unpack('<I', vp8x_data[4:7] + b'\x00')[0] + 1
-            h = struct.unpack('<I', vp8x_data[7:10] + b'\x00')[0] + 1
-            exif_data = make_organic_exif_blob(w, h)
+            if isinstance(organic, bytes):
+                exif_data = organic
+            else:
+                from metascrub.injector import make_organic_exif_blob
+                w = struct.unpack('<I', vp8x_data[4:7] + b'\x00')[0] + 1
+                h = struct.unpack('<I', vp8x_data[7:10] + b'\x00')[0] + 1
+                exif_data = make_organic_exif_blob(w, h)
             clean_chunks.append((b'EXIF', len(exif_data), exif_data))
             vp8x_data[0] |= 0x20
             for i, (cid, cs, cd) in enumerate(clean_chunks):

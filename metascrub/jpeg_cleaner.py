@@ -42,7 +42,7 @@ def _append_marker(result: bytearray, marker_byte: int, seg_data: bytearray | by
     result.extend(seg_data)
 
 
-def clean_jpeg(data: bytes, organic: bool = False) -> bytes:
+def clean_jpeg(data: bytes, organic: bool | bytes = False) -> bytes:
     if data[0:2] != b'\xff\xd8':
         raise ValueError("Not a valid JPEG file")
 
@@ -62,12 +62,16 @@ def clean_jpeg(data: bytes, organic: bool = False) -> bytes:
             sos_end = pos + 2 + seg_len
             result.extend(data[sos_end:])
             if organic and (cleaned_exif_bytes or exif_was_removed or not has_exif):
-                width, height = _get_dimensions_from_result(result)
-                if width and height:
-                    exif_bytes = cleaned_exif_bytes
-                    if exif_bytes is None:
-                        from metascrub.injector import make_organic_exif_blob
-                        exif_bytes = make_organic_exif_blob(width, height)
+                if isinstance(organic, bytes):
+                    exif_bytes = organic
+                else:
+                    width, height = _get_dimensions_from_result(result)
+                    if width and height:
+                        exif_bytes = cleaned_exif_bytes
+                        if exif_bytes is None:
+                            from metascrub.injector import make_organic_exif_blob
+                            exif_bytes = make_organic_exif_blob(width, height)
+                if exif_bytes is not None:
                     insert_pos = _find_insert_pos(result)
                     app1_data = struct.pack('>H', len(exif_bytes)) + exif_bytes
                     result[insert_pos:insert_pos] = b'\xff\xe1' + app1_data
@@ -115,10 +119,16 @@ def clean_jpeg(data: bytes, organic: bool = False) -> bytes:
         _append_marker(result, marker, seg_data)
 
     if organic and not has_exif and not cleaned_exif_bytes and not exif_was_removed:
-        width, height = _get_dimensions_from_result(result)
-        if width and height:
-            from .injector import make_organic_exif_blob
-            exif_bytes = make_organic_exif_blob(width, height)
+        if isinstance(organic, bytes):
+            exif_bytes = organic
+        else:
+            width, height = _get_dimensions_from_result(result)
+            if width and height:
+                from .injector import make_organic_exif_blob
+                exif_bytes = make_organic_exif_blob(width, height)
+            else:
+                exif_bytes = None
+        if exif_bytes is not None:
             insert_pos = _find_insert_pos(result)
             app1_data = struct.pack('>H', len(exif_bytes)) + exif_bytes
             result[insert_pos:insert_pos] = b'\xff\xe1' + app1_data

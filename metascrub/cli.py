@@ -33,11 +33,18 @@ def cli():
               default='.', help='Directory to scan')
 @click.option('-r', '--recursive', is_flag=True, help='Scan subdirectories')
 @click.option('--json', 'as_json', is_flag=True, help='Output as JSON')
-def scan(path, recursive, as_json):
+@click.option('-i', '--interactive', 'interactive_mode', is_flag=True,
+              help='Interactive mode: select files, clean, and inject EXIF')
+def scan(path, recursive, as_json, interactive_mode):
     """Scan folder for images with AI metadata."""
     scan_path = Path(path).resolve()
-    console.print(f"Scanning [cyan]{scan_path}[/cyan] ...")
 
+    if interactive_mode:
+        from metascrub.interactive import run_interactive_scan
+        run_interactive_scan(scan_path, recursive=recursive)
+        return
+
+    console.print(f"Scanning [cyan]{scan_path}[/cyan] ...")
     results = scan_and_analyze(scan_path, recursive=recursive)
 
     if as_json:

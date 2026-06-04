@@ -113,3 +113,179 @@ def make_organic_exif_blob(width: int | None = None, height: int | None = None) 
     import piexif
     exif_dict = _build_exif_dict(width, height)
     return piexif.dump(exif_dict)
+
+
+def make_canva_exif_blob(width: int | None = None, height: int | None = None) -> bytes:
+    import piexif
+    date_str = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+
+    exif_dict = {
+        '0th': {},
+        'Exif': {},
+        'GPS': {},
+        '1st': {},
+        'thumbnail': None,
+    }
+
+    exif_dict['0th'][piexif.ImageIFD.Make] = b'Canva'
+    exif_dict['0th'][piexif.ImageIFD.Model] = b'Canva'
+    exif_dict['0th'][piexif.ImageIFD.Software] = b'Canva'
+    exif_dict['0th'][piexif.ImageIFD.Orientation] = 1
+    exif_dict['0th'][piexif.ImageIFD.XResolution] = (72, 1)
+    exif_dict['0th'][piexif.ImageIFD.YResolution] = (72, 1)
+    exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = 2
+    exif_dict['0th'][piexif.ImageIFD.DateTime] = date_str.encode()
+
+    exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = date_str.encode()
+    exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = date_str.encode()
+    exif_dict['Exif'][piexif.ExifIFD.ColorSpace] = 1
+    exif_dict['Exif'][piexif.ExifIFD.PixelXDimension] = width or 0
+    exif_dict['Exif'][piexif.ExifIFD.PixelYDimension] = height or 0
+
+    return piexif.dump(exif_dict)
+
+
+def inject_canva_metadata(file_path: "Path", fmt: str | None = None) -> "Path":
+    from metascrub.cleaner import clean_file, get_format
+
+    fmt = fmt or get_format(file_path)
+    if not fmt:
+        raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
+    if fmt == 'png':
+        _inject_canva_png(file_path)
+    else:
+        w, h = _get_pillow_dims(file_path)
+        blob = make_canva_exif_blob(w, h)
+        clean_file(file_path, organic=blob, in_place=True)
+
+    return file_path
+
+
+def _inject_canva_png(file_path: "Path"):
+    from metascrub.png_cleaner import read_chunks, rebuild_png, make_chunk
+    data = file_path.read_bytes()
+    chunks = read_chunks(data)
+
+    new_chunks = []
+    has_software = False
+    insert_idx = len(chunks)
+
+    for i, (ct, cd, crc) in enumerate(chunks):
+        if ct == b'IDAT' and insert_idx == len(chunks):
+            insert_idx = i
+        if ct in (b'tEXt', b'iTXt', b'zTXt'):
+            null_pos = cd.find(b'\0')
+            if null_pos > 0:
+                kw = cd[:null_pos].decode('latin-1', errors='replace').lower()
+                if kw == 'software':
+                    has_software = True
+                    continue
+        if ct == b'eXIf':
+            continue
+        new_chunks.append((ct, cd, crc))
+
+    sw_chunk = make_chunk(b'tEXt', b'Software\x00Canva')
+    new_chunks.insert(insert_idx, sw_chunk)
+    insert_idx += 1
+
+    w, h = _get_png_dims(new_chunks)
+    exif_blob = make_canva_exif_blob(w, h)
+    if exif_blob.startswith(b'Exif\x00\x00'):
+        exif_blob = exif_blob[6:]
+    exif_chunk = make_chunk(b'eXIf', exif_blob)
+    new_chunks.insert(insert_idx, exif_chunk)
+
+    file_path.write_bytes(rebuild_png(new_chunks))
+
+
+def _get_png_dims(chunks: list) -> tuple:
+    for ct, cd, _ in chunks:
+        if ct == b'IHDR' and len(cd) >= 8:
+            import struct
+            w = struct.unpack('>I', cd[0:4])[0]
+            h = struct.unpack('>I', cd[4:8])[0]
+            return w, h
+    return None, None
+
+
+def _get_pillow_dims(file_path: "Path") -> tuple:
+    try:
+        from PIL import Image
+        img = Image.open(file_path)
+        return img.size
+    except Exception:
+        return None, None
+
+
+def make_custom_exif_blob(
+    width: int | None = None,
+    height: int | None = None,
+    make: str | None = None,
+    model: str | None = None,
+    lens: str | None = None,
+    date_str: str | None = None,
+    iso: int | None = None,
+    fnumber: tuple[int, int] | None = None,
+    shutter: tuple[int, int] | None = None,
+    focal: tuple[int, int] | None = None,
+) -> bytes:
+    import piexif
+
+    camera = random.choice(CAMERA_PROFILES)
+    date_str = date_str or _random_date_near()
+    shutter = shutter or random.choice(SHUTTER_SPEEDS)
+    fstop = fnumber or random.choice(F_STOPS)
+    focal_len = focal or random.choice(FOCAL_LENGTHS)
+    iso_val = iso or random.choice(ISO_VALUES)
+    cam_make = (make or camera["make"]).encode()
+    cam_model = (model or camera["model"]).encode()
+    cam_lens = (lens or camera["lens"]).encode()
+
+    exif_dict = {
+        '0th': {},
+        'Exif': {},
+        'GPS': {},
+        '1st': {},
+        'thumbnail': None,
+    }
+
+    exif_dict['0th'][piexif.ImageIFD.Make] = cam_make
+    exif_dict['0th'][piexif.ImageIFD.Model] = cam_model
+    exif_dict['0th'][piexif.ImageIFD.Orientation] = 1
+    exif_dict['0th'][piexif.ImageIFD.XResolution] = (300, 1)
+    exif_dict['0th'][piexif.ImageIFD.YResolution] = (300, 1)
+    exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = 2
+    exif_dict['0th'][piexif.ImageIFD.DateTime] = date_str.encode()
+    exif_dict['0th'][piexif.ImageIFD.Software] = b'Adobe Lightroom Classic 14.0'
+
+    exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = date_str.encode()
+    exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = date_str.encode()
+    exif_dict['Exif'][piexif.ExifIFD.ExposureTime] = shutter
+    exif_dict['Exif'][piexif.ExifIFD.FNumber] = fstop
+    exif_dict['Exif'][piexif.ExifIFD.ISOSpeedRatings] = iso_val
+    exif_dict['Exif'][piexif.ExifIFD.FocalLength] = focal_len
+    exif_dict['Exif'][piexif.ExifIFD.Flash] = 0
+    exif_dict['Exif'][piexif.ExifIFD.MeteringMode] = 5
+    exif_dict['Exif'][piexif.ExifIFD.WhiteBalance] = 0
+    exif_dict['Exif'][piexif.ExifIFD.ColorSpace] = 1
+    exif_dict['Exif'][piexif.ExifIFD.ExposureProgram] = 3
+    exif_dict['Exif'][piexif.ExifIFD.FocalLengthIn35mmFilm] = focal_len[0]
+    exif_dict['Exif'][piexif.ExifIFD.SceneCaptureType] = 0
+    exif_dict['Exif'][piexif.ExifIFD.ShutterSpeedValue] = shutter
+    exif_dict['Exif'][piexif.ExifIFD.ApertureValue] = fstop
+    exif_dict['Exif'][piexif.ExifIFD.BrightnessValue] = (0, 1)
+    exif_dict['Exif'][piexif.ExifIFD.SubSecTimeOriginal] = str(random.randint(10, 99)).encode()
+    exif_dict['Exif'][piexif.ExifIFD.CustomRendered] = 0
+    exif_dict['Exif'][piexif.ExifIFD.ExposureMode] = 0
+    exif_dict['Exif'][piexif.ExifIFD.DigitalZoomRatio] = (1, 1)
+    exif_dict['Exif'][piexif.ExifIFD.GainControl] = 0
+    exif_dict['Exif'][piexif.ExifIFD.Contrast] = 0
+    exif_dict['Exif'][piexif.ExifIFD.Saturation] = 0
+    exif_dict['Exif'][piexif.ExifIFD.Sharpness] = 0
+
+    if width and height:
+        exif_dict['Exif'][piexif.ExifIFD.PixelXDimension] = width
+        exif_dict['Exif'][piexif.ExifIFD.PixelYDimension] = height
+
+    return piexif.dump(exif_dict)

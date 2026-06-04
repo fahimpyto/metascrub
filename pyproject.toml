@@ -1,0 +1,22 @@
+[project]
+name = "metascrub"
+version = "0.1.0"
+description = "Strip AI metadata from images and optionally inject camera EXIF or Canva metadata"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0",
+    "Pillow>=10.0",
+    "piexif>=1.1",
+    "rich>=13.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+metascrub = "metascrub.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["metascrub*"]
+where = ["."]

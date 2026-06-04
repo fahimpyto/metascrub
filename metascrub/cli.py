@@ -221,5 +221,28 @@ def info(file, as_json):
         print_image_info(console, path, metadata)
 
 
+@cli.command()
+@click.argument('file', type=click.Path(exists=True, dir_okay=False))
+@click.option('--json', 'as_json', is_flag=True, help='Output as JSON')
+def dump(file, as_json):
+    """Dump ALL metadata from an image — every chunk, marker, EXIF tag, XMP, etc."""
+    path = Path(file).resolve()
+    fmt = get_format(path)
+
+    if not fmt:
+        console.print(f"[red]Unsupported format: {path.suffix}[/red]")
+        sys.exit(1)
+
+    from metascrub.dumper import dump_image
+    data = dump_image(path)
+
+    if as_json:
+        import json
+        click.echo(json.dumps(data, indent=2, default=str))
+    else:
+        from metascrub.formatter import print_dump
+        print_dump(console, data)
+
+
 if __name__ == '__main__':
     cli()

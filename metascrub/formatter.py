@@ -101,6 +101,186 @@ def print_clean_results(console: Console, processed: list[dict]):
     )
 
 
+def print_dump(console: Console, data: dict):
+    from rich.panel import Panel
+    from rich.text import Text
+
+    # ── File Info ──
+    fi = data["file"]
+    lines = [
+        f"Path:     {fi['path']}",
+        f"Size:     {_fmt_size(fi['size'])}",
+        f"Created:  {fi['created']}",
+        f"Modified: {fi['modified']}",
+        f"SHA256:   {fi['sha256']}",
+    ]
+    console.print(Panel("\n".join(lines), title=f"[bold cyan]{fi['name']}[/bold cyan] — {fi['format'].upper()}", border_style="cyan"))
+
+    # ── AI Detection ──
+    ai = data.get("ai", {})
+    if ai.get("is_ai"):
+        console.print(f"[red]!! AI-Generated[/red] — Tool: {ai.get('tool', 'Unknown')}")
+    else:
+        console.print("[green]No AI metadata detected[/green]")
+
+    # ── Camera ──
+    cam = data.get("camera")
+    if cam:
+        t = Table(box=box.SIMPLE, title="Camera")
+        t.add_column("Field", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in cam.items():
+            t.add_row(k.replace("_", " ").title(), str(v))
+        console.print(t)
+
+    # ── GPS ──
+    gps = data.get("gps")
+    if gps:
+        t = Table(box=box.SIMPLE, title="GPS Location")
+        t.add_column("Field", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in gps.items():
+            t.add_row(k.replace("_", " ").title(), str(v))
+        console.print(t)
+
+    # ── Shooting ──
+    shooting = data.get("shooting")
+    if shooting:
+        t = Table(box=box.SIMPLE, title="Shooting Settings")
+        t.add_column("Setting", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in shooting.items():
+            t.add_row(k.replace("_", " ").title(), str(v))
+        console.print(t)
+
+    # ── Dates ──
+    dates = data.get("dates")
+    if dates:
+        t = Table(box=box.SIMPLE, title="Dates")
+        t.add_column("Field", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in dates.items():
+            t.add_row(k.replace("_", " ").title(), str(v))
+        console.print(t)
+
+    # ── Copyright ──
+    cr = data.get("copyright")
+    if cr:
+        t = Table(box=box.SIMPLE, title="Copyright / Description")
+        t.add_column("Field", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in cr.items():
+            t.add_row(k.replace("_", " ").title(), str(v))
+        console.print(t)
+
+    # ── EXIF all tags ──
+    exif = data.get("exif")
+    if exif:
+        for ifd_name, ifd_data in exif.items():
+            if ifd_name == "thumbnail":
+                console.print(f"[bold]Thumbnail:[/bold] {ifd_data}")
+                continue
+            t = Table(box=box.SIMPLE, title=f"EXIF — {ifd_data.get('label', ifd_name)}")
+            t.add_column("Tag", style="cyan")
+            t.add_column("Value", style="yellow")
+            for tag, val in ifd_data.get("tags", {}).items():
+                t.add_row(tag, str(val))
+            console.print(t)
+
+    # ── XMP ──
+    xmp = data.get("xmp")
+    if xmp:
+        console.print(Panel(xmp[:2000], title="XMP Metadata", border_style="green"))
+
+    # ── ICC Profile ──
+    icc = data.get("icc_profile")
+    if icc:
+        console.print(f"[bold]ICC Profile:[/bold] {icc}")
+
+    # ── Text Chunks (PNG) / Comments (JPEG) ──
+    text_chunks = data.get("text_chunks")
+    if text_chunks:
+        t = Table(box=box.SIMPLE, title="PNG Text Chunks")
+        t.add_column("Keyword", style="cyan")
+        t.add_column("Value", style="yellow")
+        for tc in text_chunks:
+            t.add_row(tc["keyword"], tc["value"][:300])
+        console.print(t)
+
+    comments = data.get("comments")
+    if comments:
+        t = Table(box=box.SIMPLE, title="JPEG Comments")
+        t.add_column("#", style="dim")
+        t.add_column("Comment", style="yellow")
+        for i, c in enumerate(comments, 1):
+            t.add_row(str(i), c[:300])
+        console.print(t)
+
+    # ── JFIF ──
+    jfif = data.get("jfif")
+    if jfif:
+        t = Table(box=box.SIMPLE, title="JFIF")
+        t.add_column("Field", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in jfif.items():
+            t.add_row(k.replace("_", " ").title(), str(v))
+        console.print(t)
+
+    # ── Raw Structure ──
+    struct = data.get("structure", [])
+    if struct:
+        is_png = any("index" in s for s in struct)
+        is_jpeg = any("marker" in s for s in struct)
+        is_webp = any("chunk_type" in s for s in struct)
+
+        if is_png:
+            title = "PNG Chunks"
+            cols = [("Index", "dim"), ("Type", "cyan"), ("Length", "white"), ("CRC", "dim"), ("Info", "yellow")]
+            rows = []
+            for s in struct:
+                info_parts = []
+                dec = s.get("decoded", {})
+                if isinstance(dec, dict):
+                    for k, v in dec.items():
+                        info_parts.append(f"{k}={v}")
+                if s.get("key"):
+                    info_parts.insert(0, f"{s['key']}: {s.get('value', '')[:80]}")
+                rows.append([str(s["index"]), s["type"], str(s["length"]), s["crc"][:8], "; ".join(info_parts)])
+        elif is_jpeg:
+            title = "JPEG Markers"
+            cols = [("Offset", "dim"), ("Marker", "cyan"), ("Name", "white"), ("Length", "white"), ("Info", "yellow")]
+            rows = []
+            for s in struct:
+                info = s.get("content")
+                if isinstance(info, dict):
+                    info_str = "; ".join(f"{k}={v}" for k, v in info.items())
+                elif info:
+                    info_str = str(info)[:120]
+                else:
+                    info_str = ""
+                rows.append([str(s["offset"]), s["marker"], s["name"], str(s["length"]), info_str])
+        elif is_webp:
+            title = "WebP Chunks"
+            cols = [("Offset", "dim"), ("Type", "cyan"), ("Name", "white"), ("Length", "white"), ("Info", "yellow")]
+            rows = []
+            for s in struct:
+                info = s.get("content")
+                if isinstance(info, dict):
+                    info_str = "; ".join(f"{k}={v}" for k, v in info.items())
+                elif info:
+                    info_str = str(info)[:120]
+                else:
+                    info_str = ""
+                rows.append([str(s["offset"]), s["chunk_type"], s["name"], str(s["length"]), info_str])
+
+        t = Table(box=box.ROUNDED, title=title)
+        for col_name, col_style in cols:
+            t.add_column(col_name, style=col_style, no_wrap=True)
+        for row in rows:
+            t.add_row(*row)
+        console.print(t)
+
+
 def print_image_info(console: Console, path: Path, metadata: dict):
     console.print(f"\n[bold cyan]File:[/bold cyan] {path.name}")
     console.print(f"[bold]Path:[/bold] {path.resolve()}")

@@ -58,8 +58,3 @@ metascrub clean -p . -r
 - WebP
 
 
-
-
-
-
-is there any option that canva soft made image , like animated images are make from canva I need to mimic that, also the image I will clean or inject data will be in that folder will create output clean image there will be

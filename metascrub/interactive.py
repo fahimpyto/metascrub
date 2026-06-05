@@ -302,24 +302,14 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
             blob = make_custom_exif_blob(
                 width=w, height=h,
                 make=make or None, model=model or None,
-                lens=lens or None, date_str=date_str or None,
+                lens=lens or None, software=software or None,
+                date_str=date_str or None,
                 iso=iso, fnumber=fnumber_val,
                 shutter=shutter_val, focal=focal,
+                description=description or None,
+                artist=artist or None,
+                copyright_s=copyright_s or None,
             )
-
-            # Inject description/artist/copyright/software into the blob
-            if description or artist or copyright_s or software:
-                import piexif
-                exif_dict = piexif.load(blob)
-                if description:
-                    exif_dict['0th'][piexif.ImageIFD.ImageDescription] = description.encode()
-                if artist:
-                    exif_dict['0th'][piexif.ImageIFD.Artist] = artist.encode()
-                if copyright_s:
-                    exif_dict['0th'][piexif.ImageIFD.Copyright] = copyright_s.encode()
-                if software:
-                    exif_dict['0th'][piexif.ImageIFD.Software] = software.encode()
-                blob = piexif.dump(exif_dict)
 
             default_name = f"{file_path.stem}_custom"
             name = _prompt_filename(console, "Output filename", default=default_name)

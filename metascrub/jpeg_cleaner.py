@@ -42,7 +42,7 @@ def _append_marker(result: bytearray, marker_byte: int, seg_data: bytearray | by
     result.extend(seg_data)
 
 
-def clean_jpeg(data: bytes, organic: bool | bytes = False) -> bytes:
+def clean_jpeg(data: bytes, inject_exif: bool = False, exif_blob: bytes | None = None) -> bytes:
     if data[0:2] != b'\xff\xd8':
         raise ValueError("Not a valid JPEG file")
 
@@ -61,9 +61,9 @@ def clean_jpeg(data: bytes, organic: bool | bytes = False) -> bytes:
             _append_marker(result, marker, seg_data)
             sos_end = pos + 2 + seg_len
             result.extend(data[sos_end:])
-            if organic and (cleaned_exif_bytes or exif_was_removed or not has_exif):
-                if isinstance(organic, bytes):
-                    exif_bytes = organic
+            if (inject_exif or exif_blob) and (cleaned_exif_bytes or exif_was_removed or not has_exif):
+                if exif_blob is not None:
+                    exif_bytes = exif_blob
                 else:
                     width, height = _get_dimensions_from_result(result)
                     if width and height:
@@ -118,9 +118,9 @@ def clean_jpeg(data: bytes, organic: bool | bytes = False) -> bytes:
 
         _append_marker(result, marker, seg_data)
 
-    if organic and not has_exif and not cleaned_exif_bytes and not exif_was_removed:
-        if isinstance(organic, bytes):
-            exif_bytes = organic
+    if (inject_exif or exif_blob) and not has_exif and not cleaned_exif_bytes and not exif_was_removed:
+        if exif_blob is not None:
+            exif_bytes = exif_blob
         else:
             width, height = _get_dimensions_from_result(result)
             if width and height:

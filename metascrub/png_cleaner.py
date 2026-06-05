@@ -48,7 +48,7 @@ def is_ai_chunk(chunk_type: bytes) -> bool:
     return chunk_type in AI_CHUNK_TYPES
 
 
-def clean_png(data: bytes, organic: bool | bytes = False) -> bytes:
+def clean_png(data: bytes, inject_exif: bool = False, exif_blob: bytes | None = None) -> bytes:
     if not data.startswith(PNG_SIGNATURE):
         raise ValueError("Not a valid PNG file")
 
@@ -68,15 +68,16 @@ def clean_png(data: bytes, organic: bool | bytes = False) -> bytes:
             continue
 
         if chunk_type == b'eXIf':
-            if organic:
+            if inject_exif or exif_blob:
                 exif_replaced = True
             continue
 
         clean_chunks.append((chunk_type, chunk_data, crc))
 
-    if organic and not exif_replaced:
-        if isinstance(organic, bytes):
-            exif_data = organic
+    should_inject = inject_exif or exif_blob
+    if should_inject and not exif_replaced:
+        if exif_blob is not None:
+            exif_data = exif_blob
         else:
             from metascrub.injector import make_organic_exif_blob
             ihdr = clean_chunks[0][1]

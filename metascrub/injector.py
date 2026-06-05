@@ -157,7 +157,7 @@ def inject_canva_metadata(file_path: "Path", fmt: str | None = None) -> "Path":
     else:
         w, h = _get_pillow_dims(file_path)
         blob = make_canva_exif_blob(w, h)
-        clean_file(file_path, organic=blob, in_place=True)
+        clean_file(file_path, exif_blob=blob, in_place=True)
 
     return file_path
 

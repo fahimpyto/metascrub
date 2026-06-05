@@ -177,7 +177,7 @@ def _clean_image(console: Console, file_path: Path, fmt: str | None):
     console.print(f"Cleaning [cyan]{file_path.name}[/cyan] ...")
 
     try:
-        cleaned = clean_file(file_path, organic=False, in_place=False,
+        cleaned = clean_file(file_path, in_place=False,
                              output_dir=out_dir)
         dest = out_dir / out_name
         if cleaned != dest:
@@ -252,7 +252,7 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
             data = file_path.read_bytes()
             w, h = _get_image_dimensions(file_path, fmt)
             blob = make_organic_exif_blob(w, h)
-            cleaned = clean_image(data, fmt, organic=blob)
+            cleaned = clean_image(data, fmt, exif_blob=blob)
             out_path.write_bytes(cleaned)
             console.print(f"[green]✓ Organic EXIF injected → {out_path}[/green]")
             click.pause("Press any key to continue...")
@@ -330,7 +330,7 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
             out_path = out_dir / f"{name}{file_path.suffix}"
 
             data = file_path.read_bytes()
-            cleaned = clean_image(data, fmt, organic=blob)
+            cleaned = clean_image(data, fmt, exif_blob=blob)
             out_path.write_bytes(cleaned)
             console.print(f"[green]✓ Custom EXIF injected → {out_path}[/green]")
             click.pause("Press any key to continue...")
@@ -347,7 +347,7 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
             data = file_path.read_bytes()
             w, h = _get_image_dimensions(file_path, fmt)
             blob = make_design_exif_blob(w, h)
-            cleaned = clean_image(data, fmt, organic=blob)
+            cleaned = clean_image(data, fmt, exif_blob=blob)
             out_path.write_bytes(cleaned)
             console.print(f"[green]✓ Design-app metadata injected → {out_path}[/green]")
             click.pause("Press any key to continue...")

@@ -115,16 +115,15 @@ def clean(file, output, name, organic, design, dry_run):
         return
 
     try:
-        organic_blob = False
-        if organic:
-            organic_blob = True
-        elif design:
+        inject_exif = bool(organic)
+        exif_blob = None
+        if design:
             w, h = _get_dimensions(path)
             from metascrub.injector import make_design_exif_blob
-            organic_blob = make_design_exif_blob(w, h)
+            exif_blob = make_design_exif_blob(w, h)
 
-        cleaned_path = clean_file(path, organic=organic_blob, in_place=False,
-                                  output_dir=out_dir)
+        cleaned_path = clean_file(path, inject_exif=inject_exif, exif_blob=exif_blob,
+                                  in_place=False, output_dir=out_dir)
         dest = out_dir / out_name
         if cleaned_path != dest:
             if dest.exists():

@@ -21,6 +21,19 @@ def _fmt_size(size: int) -> str:
         return f"{size / (1024*1024):.1f}MB"
 
 
+def _prompt_filename(console: Console, prompt: str, default: str = "") -> str | None:
+    """Prompt for a filename. Returns None if user cancels (b/back/c/cancel or Ctrl+C)."""
+    try:
+        val = click.prompt(prompt, default=default, show_default=True).strip()
+        if val.lower() in ("b", "back", "c", "cancel"):
+            console.print("[yellow]Cancelled.[/yellow]")
+            return None
+        return val
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[yellow]Cancelled.[/yellow]")
+        return None
+
+
 def run_interactive_scan(console: Console, scan_path: Path, recursive: bool = False):
     while True:
         console.print(f"\nScanning [cyan]{scan_path}[/cyan] ...")
@@ -58,8 +71,14 @@ def run_interactive_scan(console: Console, scan_path: Path, recursive: bool = Fa
         console.print(table)
 
         total = len(results)
-        prompt = f"Select image #[bold]1-{total}[/bold] (or 'a' all, 'q' quit): "
-        choice = click.prompt(prompt, default="", show_default=False).strip().lower()
+        try:
+            choice = click.prompt(
+                f"Select image #[bold]1-{total}[/bold] (or 'a' all, 'q' quit): ",
+                default="", show_default=False
+            ).strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Exited.[/yellow]")
+            return
 
         if choice == "q":
             console.print("[yellow]Exited.[/yellow]")
@@ -103,7 +122,11 @@ def _process_image(console: Console, file_path: Path, fmt: str | None, num: int)
         table.add_row("[5]", "Exit")
         console.print(table)
 
-        action = click.prompt("Choose", default="", show_default=False).strip().lower()
+        try:
+            action = click.prompt("Choose", default="", show_default=False).strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Back to scan results.[/yellow]")
+            return
 
         if action in ("1", "info"):
             _show_info(console, file_path, fmt)
@@ -138,10 +161,9 @@ def _clean_image(console: Console, file_path: Path, fmt: str | None):
 
     # Prompt for output name
     default_name = f"{file_path.stem}_cleaned"
-    custom_name = click.prompt(
-        f"Output filename (without extension)",
-        default=default_name, show_default=True
-    ).strip()
+    custom_name = _prompt_filename(console, "Output filename (without extension)", default=default_name)
+    if custom_name is None:
+        return
     if not custom_name:
         custom_name = default_name
     out_name = f"{custom_name}{file_path.suffix}"
@@ -210,13 +232,19 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
         table.add_row("[B]", "← Back")
         console.print(table)
 
-        action = click.prompt("Choose", default="", show_default=False).strip().lower()
+        try:
+            action = click.prompt("Choose", default="", show_default=False).strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Back.[/yellow]")
+            return
         out_dir = Path("output").resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
 
         if action in ("a", "auto"):
             default_name = f"{file_path.stem}_organic"
-            name = click.prompt("Output filename", default=default_name, show_default=True).strip()
+            name = _prompt_filename(console, "Output filename", default=default_name)
+            if name is None:
+                continue
             if not name:
                 name = default_name
             out_path = out_dir / f"{name}{file_path.suffix}"
@@ -231,20 +259,24 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
 
         elif action in ("c", "custom"):
             console.print(f"  [bold]Custom EXIF for [cyan]{file_path.name}[/cyan]:[/bold]")
-            console.print("  (press Enter to skip any field)")
+            console.print("  (press Enter to skip any field, or Ctrl+C / type 'b' to cancel at any time)")
 
-            make = click.prompt("    Camera Make", default="").strip()
-            model = click.prompt("    Camera Model", default="").strip()
-            lens = click.prompt("    Lens", default="").strip()
-            software = click.prompt("    Software", default="").strip()
-            date_str = click.prompt("    Date/Time (YYYY:MM:DD HH:MM:SS)", default="").strip()
-            iso_raw = click.prompt("    ISO", default="").strip()
-            fstop_raw = click.prompt("    F-Stop (e.g. 2.8)", default="").strip()
-            shutter_raw = click.prompt("    Shutter Speed (e.g. 1/250)", default="").strip()
-            focal_raw = click.prompt("    Focal Length (e.g. 50)", default="").strip()
-            description = click.prompt("    Image Description", default="").strip()
-            artist = click.prompt("    Artist", default="").strip()
-            copyright_s = click.prompt("    Copyright", default="").strip()
+            try:
+                make = click.prompt("    Camera Make", default="").strip()
+                model = click.prompt("    Camera Model", default="").strip()
+                lens = click.prompt("    Lens", default="").strip()
+                software = click.prompt("    Software", default="").strip()
+                date_str = click.prompt("    Date/Time (YYYY:MM:DD HH:MM:SS)", default="").strip()
+                iso_raw = click.prompt("    ISO", default="").strip()
+                fstop_raw = click.prompt("    F-Stop (e.g. 2.8)", default="").strip()
+                shutter_raw = click.prompt("    Shutter Speed (e.g. 1/250)", default="").strip()
+                focal_raw = click.prompt("    Focal Length (e.g. 50)", default="").strip()
+                description = click.prompt("    Image Description", default="").strip()
+                artist = click.prompt("    Artist", default="").strip()
+                copyright_s = click.prompt("    Copyright", default="").strip()
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n[yellow]Cancelled custom edit.[/yellow]")
+                continue
 
             iso = int(iso_raw) if iso_raw.isdigit() else None
             focal = (int(focal_raw), 1) if focal_raw.isdigit() else None
@@ -290,7 +322,9 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
                 blob = piexif.dump(exif_dict)
 
             default_name = f"{file_path.stem}_custom"
-            name = click.prompt("Output filename", default=default_name, show_default=True).strip()
+            name = _prompt_filename(console, "Output filename", default=default_name)
+            if name is None:
+                continue
             if not name:
                 name = default_name
             out_path = out_dir / f"{name}{file_path.suffix}"
@@ -303,7 +337,9 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
 
         elif action in ("d", "design"):
             default_name = f"{file_path.stem}_design"
-            name = click.prompt("Output filename", default=default_name, show_default=True).strip()
+            name = _prompt_filename(console, "Output filename", default=default_name)
+            if name is None:
+                continue
             if not name:
                 name = default_name
             out_path = out_dir / f"{name}{file_path.suffix}"

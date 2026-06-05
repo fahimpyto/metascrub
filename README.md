@@ -73,6 +73,12 @@ mtsb clean image.png --design
   [5] Exit
 ```
 
+### Cancel / go back anytime
+
+- Type **`b`** or **`c`** at any filename prompt to cancel and return to the previous menu
+- Press **`Ctrl+C`** at any prompt to cancel and go back
+- Press **`q`** at the scan selection to exit entirely
+
 ## Features
 
 ### Deep C2PA Manifest Parsing

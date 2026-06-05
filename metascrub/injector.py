@@ -275,11 +275,18 @@ def make_custom_exif_blob(
     make: str | None = None,
     model: str | None = None,
     lens: str | None = None,
+    software: str | None = None,
     date_str: str | None = None,
     iso: int | None = None,
     fnumber: tuple[int, int] | None = None,
     shutter: tuple[int, int] | None = None,
     focal: tuple[int, int] | None = None,
+    description: str | None = None,
+    artist: str | None = None,
+    copyright_s: str | None = None,
+    gps_lat: tuple[float, str] | None = None,
+    gps_lon: tuple[float, str] | None = None,
+    gps_alt: float | None = None,
 ) -> bytes:
     import piexif
 
@@ -308,7 +315,14 @@ def make_custom_exif_blob(
     exif_dict['0th'][piexif.ImageIFD.YResolution] = (300, 1)
     exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = 2
     exif_dict['0th'][piexif.ImageIFD.DateTime] = date_str.encode()
-    exif_dict['0th'][piexif.ImageIFD.Software] = b'Adobe Lightroom Classic 14.0'
+    exif_dict['0th'][piexif.ImageIFD.Software] = (software or 'Adobe Lightroom Classic 14.0').encode()
+
+    if description:
+        exif_dict['0th'][piexif.ImageIFD.ImageDescription] = description.encode()
+    if artist:
+        exif_dict['0th'][piexif.ImageIFD.Artist] = artist.encode()
+    if copyright_s:
+        exif_dict['0th'][piexif.ImageIFD.Copyright] = copyright_s.encode()
 
     exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = date_str.encode()
     exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = date_str.encode()
@@ -339,4 +353,23 @@ def make_custom_exif_blob(
         exif_dict['Exif'][piexif.ExifIFD.PixelXDimension] = width
         exif_dict['Exif'][piexif.ExifIFD.PixelYDimension] = height
 
+    if gps_lat is not None:
+        _set_gps_coord(exif_dict, piexif.GPSIFD.GPSLatitude, piexif.GPSIFD.GPSLatitudeRef, gps_lat)
+    if gps_lon is not None:
+        _set_gps_coord(exif_dict, piexif.GPSIFD.GPSLongitude, piexif.GPSIFD.GPSLongitudeRef, gps_lon)
+    if gps_alt is not None:
+        alt_ref = 0 if gps_alt >= 0 else 1
+        exif_dict['GPS'][piexif.GPSIFD.GPSAltitude] = (int(abs(gps_alt) * 100), 100)
+        exif_dict['GPS'][piexif.GPSIFD.GPSAltitudeRef] = alt_ref
+
     return piexif.dump(exif_dict)
+
+
+def _set_gps_coord(exif_dict, coord_tag, ref_tag, coord):
+    value, ref = coord
+    deg = int(abs(value))
+    min_frac = (abs(value) - deg) * 60
+    mn = int(min_frac)
+    sec = int((min_frac - mn) * 60 * 100)
+    exif_dict['GPS'][coord_tag] = ((deg, 1), (mn, 1), (sec, 100))
+    exif_dict['GPS'][ref_tag] = ref.encode() if isinstance(ref, str) else ref

@@ -307,8 +307,8 @@ def _data_manipulate(console: Console, file_path: Path, fmt: str | None):
                 shutter=shutter_val, focal=focal,
             )
 
-            # Inject description/artist/copyright into the blob
-            if description or artist or copyright_s:
+            # Inject description/artist/copyright/software into the blob
+            if description or artist or copyright_s or software:
                 import piexif
                 exif_dict = piexif.load(blob)
                 if description:

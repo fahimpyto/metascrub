@@ -7,6 +7,7 @@ from metascrub import webp_cleaner
 
 IMAGE_EXTENSIONS = {
     '.jpg': 'jpeg', '.jpeg': 'jpeg', '.jpe': 'jpeg',
+    '.jfif': 'jpeg', '.jfi': 'jpeg',
     '.png': 'png',
     '.webp': 'webp',
 }

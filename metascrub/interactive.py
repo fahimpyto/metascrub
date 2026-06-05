@@ -156,12 +156,13 @@ def _clean_image(console: Console, file_path: Path, fmt: str | None):
 
     try:
         cleaned = clean_file(file_path, organic=False, in_place=False,
-                             output_dir=out_dir / out_name)
-        if cleaned.name != out_name:
-            dest = cleaned.parent / out_name
-            if cleaned.exists():
-                cleaned.rename(dest)
-                cleaned = dest
+                             output_dir=out_dir)
+        dest = out_dir / out_name
+        if cleaned != dest:
+            if dest.exists():
+                dest.unlink()
+            cleaned.rename(dest)
+            cleaned = dest
 
         console.print(f"[green]Saved:[/green] {cleaned}")
         console.print()

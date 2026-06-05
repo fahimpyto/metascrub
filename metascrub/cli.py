@@ -124,13 +124,13 @@ def clean(file, output, name, organic, design, dry_run):
             organic_blob = make_design_exif_blob(w, h)
 
         cleaned_path = clean_file(path, organic=organic_blob, in_place=False,
-                                  output_dir=out_dir / out_name)
-        # If clean_file doesn't support custom names, handle it
-        if cleaned_path.name != out_name:
-            dest = cleaned_path.parent / out_name
-            if cleaned_path.exists():
-                cleaned_path.rename(dest)
-                cleaned_path = dest
+                                  output_dir=out_dir)
+        dest = out_dir / out_name
+        if cleaned_path != dest:
+            if dest.exists():
+                dest.unlink()
+            cleaned_path.rename(dest)
+            cleaned_path = dest
 
         console.print(f"[green]Cleaned:[/green] {cleaned_path.name}")
         console.print(f"[green]Output:[/green] {cleaned_path.parent}")

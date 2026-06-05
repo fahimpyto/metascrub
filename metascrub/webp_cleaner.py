@@ -1,7 +1,7 @@
 import struct
 
 
-def clean_webp(data: bytes, organic: bool | bytes = False) -> bytes:
+def clean_webp(data: bytes, inject_exif: bool = False, exif_blob: bytes | None = None) -> bytes:
     if not data.startswith(b'RIFF') or data[8:12] != b'WEBP':
         raise ValueError("Not a valid WebP file")
 
@@ -45,9 +45,9 @@ def clean_webp(data: bytes, organic: bool | bytes = False) -> bytes:
                     clean_chunks[i] = (cid, cs, bytes(vp8x_data))
                     break
 
-        if organic:
-            if isinstance(organic, bytes):
-                exif_data = organic
+        if inject_exif or exif_blob:
+            if exif_blob is not None:
+                exif_data = exif_blob
             else:
                 from metascrub.injector import make_organic_exif_blob
                 w = struct.unpack('<I', vp8x_data[4:7] + b'\x00')[0] + 1

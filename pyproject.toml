@@ -8,6 +8,7 @@ dependencies = [
     "Pillow>=10.0",
     "piexif>=1.1",
     "rich>=13.0",
+    "cbor2>=6.0",
 ]
 
 [build-system]
@@ -15,7 +16,7 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-metascrub = "metascrub.cli:cli"
+mtsb = "metascrub.cli:cli"
 
 [tool.setuptools.packages.find]
 include = ["metascrub*"]

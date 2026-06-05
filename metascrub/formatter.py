@@ -27,15 +27,17 @@ def print_scan_results(console: Console, results: list[dict]):
 
     table = Table(box=box.ROUNDED, title=f"Scan Results - {len(results)} images")
 
+    table.add_column("#", style="dim", width=4)
     table.add_column("File", style="cyan", no_wrap=True)
     table.add_column("Type", style="magenta")
     table.add_column("Size", style="white")
     table.add_column("AI?", style="bold")
     table.add_column("Tool", style="yellow")
 
-    for r in results:
+    for i, r in enumerate(results, 1):
         if r.get("error"):
             table.add_row(
+                str(i),
                 Path(r["path"]).name,
                 r.get("format", "?"),
                 _fmt_size(r.get("size", 0)),
@@ -46,6 +48,7 @@ def print_scan_results(console: Console, results: list[dict]):
             label = "[red]YES[/red]"
             tool = r.get("ai_tool") or "Unknown"
             table.add_row(
+                str(i),
                 Path(r["path"]).name,
                 r["format"],
                 _fmt_size(r["size"]),
@@ -54,10 +57,11 @@ def print_scan_results(console: Console, results: list[dict]):
             )
         else:
             table.add_row(
+                str(i),
                 Path(r["path"]).name,
                 r["format"],
                 _fmt_size(r["size"]),
-                "[green]No[/green]",
+                "[green]NO[/green]",
                 "-",
             )
 
@@ -114,12 +118,12 @@ def print_dump(console: Console, data: dict):
         f"Modified: {fi['modified']}",
         f"SHA256:   {fi['sha256']}",
     ]
-    console.print(Panel("\n".join(lines), title=f"[bold cyan]{fi['name']}[/bold cyan] — {fi['format'].upper()}", border_style="cyan"))
+    console.print(Panel("\n".join(lines), title=f"[bold cyan]{fi['name']}[/bold cyan] - {fi['format'].upper()}", border_style="cyan"))
 
     # ── AI Detection ──
     ai = data.get("ai", {})
     if ai.get("is_ai"):
-        console.print(f"[red]!! AI-Generated[/red] — Tool: {ai.get('tool', 'Unknown')}")
+        console.print(f"[red]!! AI-Generated[/red] - Tool: {ai.get('tool', 'Unknown')}")
     else:
         console.print("[green]No AI metadata detected[/green]")
 
@@ -180,7 +184,7 @@ def print_dump(console: Console, data: dict):
             if ifd_name == "thumbnail":
                 console.print(f"[bold]Thumbnail:[/bold] {ifd_data}")
                 continue
-            t = Table(box=box.SIMPLE, title=f"EXIF — {ifd_data.get('label', ifd_name)}")
+            t = Table(box=box.SIMPLE, title=f"EXIF - {ifd_data.get('label', ifd_name)}")
             t.add_column("Tag", style="cyan")
             t.add_column("Value", style="yellow")
             for tag, val in ifd_data.get("tags", {}).items():
@@ -191,6 +195,40 @@ def print_dump(console: Console, data: dict):
     xmp = data.get("xmp")
     if xmp:
         console.print(Panel(xmp[:2000], title="XMP Metadata", border_style="green"))
+
+    # ── C2PA ──
+    c2pa = data.get("c2pa")
+    if c2pa:
+        from metascrub.c2pa import format_c2pa_summary
+        console.print(f"[bold]C2PA Manifest:[/bold] {format_c2pa_summary(c2pa)}")
+        t = Table(box=box.SIMPLE, title="C2PA Details")
+        t.add_column("Field", style="cyan")
+        t.add_column("Value", style="yellow")
+        for k, v in c2pa.items():
+            display_key = k.replace("_", " ").replace(".", " ").title()
+            if isinstance(v, str):
+                t.add_row(display_key, v[:300])
+            elif isinstance(v, (int, float, bool)):
+                t.add_row(display_key, str(v))
+            elif isinstance(v, bytes):
+                t.add_row(display_key, f"<{len(v)} bytes binary>")
+            elif isinstance(v, list):
+                for idx, item in enumerate(v):
+                    if isinstance(item, dict):
+                        for sk, sv in item.items():
+                            dk = f"{display_key} {sk.replace('_',' ').title()}"
+                            val = _fmt_c2pa_value(sv)
+                            t.add_row(dk, val)
+                    else:
+                        t.add_row(f"{display_key}[{idx}]", str(item)[:300])
+            elif isinstance(v, dict):
+                for sk, sv in v.items():
+                    dk = f"{display_key} {sk.replace('_',' ').title()}"
+                    val = _fmt_c2pa_value(sv)
+                    t.add_row(dk, val)
+            else:
+                t.add_row(display_key, str(v)[:300])
+        console.print(t)
 
     # ── ICC Profile ──
     icc = data.get("icc_profile")
@@ -279,6 +317,18 @@ def print_dump(console: Console, data: dict):
         for row in rows:
             t.add_row(*row)
         console.print(t)
+
+
+def _fmt_c2pa_value(val) -> str:
+    if isinstance(val, bytes):
+        return f"<{len(val)} bytes binary>"
+    if isinstance(val, dict):
+        parts = []
+        for k, v in val.items():
+            short_v = str(v)[:60]
+            parts.append(f"{k}={short_v}")
+        return "; ".join(parts)[:300]
+    return str(val)[:300]
 
 
 def print_image_info(console: Console, path: Path, metadata: dict):

@@ -218,6 +218,57 @@ def _get_pillow_dims(file_path: "Path") -> tuple:
         return None, None
 
 
+DESIGN_APP_PROFILES = [
+    {"software": "Adobe Photoshop 2026", "make": "Adobe Inc.", "model": "Photoshop"},
+    {"software": "Adobe Illustrator 2026", "make": "Adobe Inc.", "model": "Illustrator"},
+    {"software": "Procreate", "make": "Savage Interactive", "model": "Procreate"},
+    {"software": "Clip Studio Paint 3.0", "make": "Celsys", "model": "Clip Studio Paint"},
+    {"software": "Affinity Designer 2", "make": "Serif", "model": "Affinity Designer 2"},
+    {"software": "Krita 5.2", "make": "Krita Foundation", "model": "Krita"},
+    {"software": "GIMP 2.99", "make": "GIMP", "model": "GIMP"},
+    {"software": "CorelDRAW 2024", "make": "Corel Corporation", "model": "CorelDRAW"},
+    {"software": "Canva", "make": "Canva", "model": "Canva"},
+]
+
+
+def make_design_exif_blob(
+    width: int | None = None,
+    height: int | None = None,
+) -> bytes:
+    import piexif
+    import random
+
+    profile = random.choice(DESIGN_APP_PROFILES)
+    date_str = _random_date_near()
+
+    exif_dict = {
+        '0th': {},
+        'Exif': {},
+        'GPS': {},
+        '1st': {},
+        'thumbnail': None,
+    }
+
+    exif_dict['0th'][piexif.ImageIFD.Make] = profile['make'].encode()
+    exif_dict['0th'][piexif.ImageIFD.Model] = profile['model'].encode()
+    exif_dict['0th'][piexif.ImageIFD.Software] = profile['software'].encode()
+    exif_dict['0th'][piexif.ImageIFD.Orientation] = 1
+    exif_dict['0th'][piexif.ImageIFD.XResolution] = (300, 1)
+    exif_dict['0th'][piexif.ImageIFD.YResolution] = (300, 1)
+    exif_dict['0th'][piexif.ImageIFD.ResolutionUnit] = 2
+    exif_dict['0th'][piexif.ImageIFD.DateTime] = date_str.encode()
+
+    exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = date_str.encode()
+    exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = date_str.encode()
+    exif_dict['Exif'][piexif.ExifIFD.ColorSpace] = 1
+
+    if width and height:
+        exif_dict['Exif'][piexif.ExifIFD.PixelXDimension] = width
+        exif_dict['Exif'][piexif.ExifIFD.PixelYDimension] = height
+
+    return piexif.dump(exif_dict)
+
+
 def make_custom_exif_blob(
     width: int | None = None,
     height: int | None = None,

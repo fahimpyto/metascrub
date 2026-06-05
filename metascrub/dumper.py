@@ -53,10 +53,12 @@ def _register(t: bytes):
 
 def _dump_png(data: bytes, result: dict):
     from metascrub.png_cleaner import read_chunks
+    from metascrub.c2pa import parse_c2pa, format_c2pa_summary
     chunks = read_chunks(data)
     result["structure"] = []
     text_chunks = []
     raw_exif = None
+    c2pa_data = {}
 
     for i, (ct, cd, crc) in enumerate(chunks):
         entry = {
@@ -82,9 +84,19 @@ def _dump_png(data: bytes, result: dict):
         if ct == b'eXIf':
             raw_exif = cd[6:] if cd.startswith(b'Exif\x00\x00') else cd
 
+        if ct == b'caBX' and len(cd) > 0:
+            try:
+                parsed = parse_c2pa(cd)
+                if parsed:
+                    c2pa_data = parsed
+            except Exception:
+                pass
+
         result["structure"].append(entry)
 
     result["text_chunks"] = text_chunks
+    if c2pa_data:
+        result["c2pa"] = c2pa_data
     _parse_raw_exif(raw_exif, result)
 
 

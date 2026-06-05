@@ -1,7 +1,7 @@
 import struct
 
 AI_SOFTWARE_SIGNATURES = [
-    "openai", "dall-e", "dall e", "chatgpt", "gpt",
+    "openai", "dall-e", "dall e", "chatgpt", "gpt-image", "openai-media-api",
     "midjourney", "mj ",
     "stable diffusion", "stablediffusion", "automatic1111", "a1111",
     "comfyui", "comfy ui", "forge", "fooocus",
@@ -26,11 +26,10 @@ AI_TEXT_CHUNK_KEYS = {
     "lora", "clip_skip", "denoising_strength",
     "workflow", "workflow_json", "workflow_node",
     "mj_prompt", "midjourney",
-    "generation_params", "ai_tool", "user_comment",
+    "generation_params", "ai_tool",
 }
 
 AI_CHUNK_TYPES = {b'caBX', b'caMs', b'caSt'}
-CANVA_SOFTWARE_KEYWORDS = {"software", "creator", "generator"}
 
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
 RIFF_SIGNATURE = b'RIFF'
@@ -51,12 +50,14 @@ def _detect_png_ai(data: bytes) -> dict:
     pos = 8
     text_keys = set()
     chunk_types = set()
-    canva_found = False
+    c2pa_raw_data = None
     while pos + 8 <= len(data):
         length = struct.unpack('>I', data[pos:pos+4])[0]
         chunk_type = data[pos+4:pos+8]
         if chunk_type in AI_CHUNK_TYPES:
             chunk_types.add(chunk_type.decode('latin-1'))
+            if chunk_type == b'caBX' and length > 0:
+                c2pa_raw_data = data[pos+8:pos+8+length]
         if chunk_type in (b'tEXt', b'iTXt', b'zTXt') and length > 0:
             chunk_data = data[pos+8:pos+8+length]
             null_pos = chunk_data.find(b'\0')
@@ -64,38 +65,14 @@ def _detect_png_ai(data: bytes) -> dict:
                 keyword = chunk_data[:null_pos].decode('latin-1', errors='replace').lower()
                 if keyword in AI_TEXT_CHUNK_KEYS:
                     text_keys.add(keyword)
-                if keyword in CANVA_SOFTWARE_KEYWORDS:
-                    val = chunk_data[null_pos+1:].decode('latin-1', errors='replace').lower()
-                    if 'canva' in val:
-                        canva_found = True
         pos += 12 + length
     if text_keys or chunk_types:
-        return {"is_ai": True, "tool": _identify_tool(text_keys, chunk_types)}
-    if canva_found:
-        return {"is_ai": True, "tool": "Canva"}
+        return {"is_ai": True, "tool": _identify_tool(text_keys, chunk_types, c2pa_raw_data)}
     return {"is_ai": False, "tool": None}
-
-
-def _jpeg_check_canva(exif_dict: dict) -> bool:
-    import piexif
-    canva_tags = {piexif.ImageIFD.Software, piexif.ImageIFD.ImageDescription,
-                  piexif.ExifIFD.UserComment, piexif.ImageIFD.XPComment}
-    for ifd_name in ('0th', 'Exif', 'GPS', '1st'):
-        ifd = exif_dict.get(ifd_name, {})
-        for tag_id, value in ifd.items():
-            if isinstance(value, bytes):
-                try:
-                    if 'canva' in value.decode('utf-8', errors='replace').lower():
-                        if tag_id in canva_tags:
-                            return True
-                except Exception:
-                    pass
-    return False
 
 
 def _detect_jpeg_ai(data: bytes) -> dict:
     signatures_found = []
-    canva_found = False
     pos = 2
     while pos + 4 <= len(data):
         if data[pos] != 0xFF:
@@ -119,12 +96,10 @@ def _detect_jpeg_ai(data: bytes) -> dict:
         seg_data = data[pos+4:pos+2+length]
         if marker == 0xE1:
             if seg_data.startswith(b'http://ns.adobe.com/xap/1.0/'):
-                xmp_text = seg_data.lower()
+                xmp_text = seg_data.decode('latin-1', errors='replace').lower()
                 for sig in AI_SOFTWARE_SIGNATURES:
-                    if sig in xmp_text.decode('latin-1', errors='replace'):
+                    if sig in xmp_text:
                         signatures_found.append(sig)
-                if b'canva' in xmp_text:
-                    canva_found = True
             elif seg_data.startswith(b'Exif\x00\x00'):
                 try:
                     import piexif
@@ -137,20 +112,24 @@ def _detect_jpeg_ai(data: bytes) -> dict:
                                 for sig in AI_SOFTWARE_SIGNATURES:
                                     if sig in val_lower:
                                         signatures_found.append(sig)
-                    if _jpeg_check_canva(exif_dict):
-                        canva_found = True
                 except Exception:
                     pass
         elif marker == 0xEB:
-            signatures_found.append("c2pa")
+            seg_lower = seg_data.lower()
+            if b'c2pa' in seg_lower or b'contentcredentials' in seg_lower or b'c2pa' in str(seg_data[:20]):
+                signatures_found.append("c2pa")
         elif marker == 0xEE:
             if b'c2pa' in seg_data.lower() or b'contentcredentials' in seg_data.lower():
                 signatures_found.append("c2pa")
         pos += 2 + length
     if signatures_found:
-        return {"is_ai": True, "tool": signatures_found[0] if signatures_found[0] != "c2pa" else "C2PA"}
-    if canva_found:
-        return {"is_ai": True, "tool": "Canva"}
+        tool = signatures_found[0]
+        if tool == "c2pa":
+            return {"is_ai": True, "tool": "C2PA content credentials"}
+        for sig in AI_SOFTWARE_SIGNATURES:
+            if sig in tool.lower():
+                return {"is_ai": True, "tool": tool}
+        return {"is_ai": True, "tool": tool}
     return {"is_ai": False, "tool": None}
 
 
@@ -173,28 +152,35 @@ def _detect_webp_ai(data: bytes) -> dict:
                             for sig in AI_SOFTWARE_SIGNATURES:
                                 if sig in val_lower:
                                     return {"is_ai": True, "tool": sig}
-                if _jpeg_check_canva(exif_dict):
-                    return {"is_ai": True, "tool": "Canva"}
     except Exception:
         pass
     xmp_start = data.find(b'XMP ')
     if xmp_start > 0:
-        xmp_data = data[xmp_start:xmp_start+200].lower()
+        xmp_data = data[xmp_start:xmp_start+200].decode('latin-1', errors='replace').lower()
         for sig in AI_SOFTWARE_SIGNATURES:
-            if sig in xmp_data.decode('latin-1', errors='replace'):
+            if sig in xmp_data:
                 return {"is_ai": True, "tool": sig}
-        if b'canva' in xmp_data:
-            return {"is_ai": True, "tool": "Canva"}
     return {"is_ai": False, "tool": None}
 
 
-def _identify_tool(text_keys: set, chunk_types: set) -> str:
+def _identify_tool(text_keys: set, chunk_types: set, c2pa_raw: bytes | None = None) -> str:
     if 'parameters' in text_keys or 'model_hash' in text_keys:
         return "Stable Diffusion (A1111)"
     if 'workflow' in text_keys or 'workflow_json' in text_keys:
         return "ComfyUI"
     if 'mj_prompt' in text_keys or 'midjourney' in text_keys:
         return "Midjourney"
-    if chunk_types & {b'caBX', b'caMs', b'caSt'}:
-        return "C2PA (DALL-E / Firefly)"
+    if chunk_types & {'caBX', 'caMs', 'caSt'}:
+        if c2pa_raw:
+            from metascrub.c2pa import parse_c2pa, identify_tool_from_c2pa
+            try:
+                c2pa_data = parse_c2pa(c2pa_raw)
+                tool = identify_tool_from_c2pa(c2pa_data)
+                if tool:
+                    return tool
+            except Exception:
+                pass
+        return "C2PA content credentials"
+    if text_keys:
+        return "AI-generated (Unknown tool)"
     return "Unknown AI tool"

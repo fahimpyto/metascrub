@@ -24,8 +24,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/fahimpyto/image-meta-data-manipulator"
-Repository = "https://github.com/fahimpyto/image-meta-data-manipulator"
+Homepage = "https://github.com/fahimpyto/metascrub"
+Repository = "https://github.com/fahimpyto/metascrub"
 
 [build-system]
 requires = ["setuptools>=68.0"]

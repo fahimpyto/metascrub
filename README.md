@@ -1,7 +1,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/metascrub)](https://pypi.org/project/metascrub/)
 [![Python versions](https://img.shields.io/pypi/pyversions/metascrub)](https://pypi.org/project/metascrub/)
-[![License](https://img.shields.io/pypi/l/metascrub)](https://github.com/fahimpyto/image-meta-data-manipulator/blob/main/LICENSE)
-[![GitHub](https://img.shields.io/badge/GitHub-fahimpyto%2Fimage--meta--data--manipulator-blue)](https://github.com/fahimpyto/image-meta-data-manipulator)
+[![License](https://img.shields.io/pypi/l/metascrub)](https://github.com/fahimpyto/metascrub/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-fahimpyto%2Fmetascrub-blue)](https://github.com/fahimpyto/metascrub)
 
 ```
 ███╗   ███╗███████╗████████╗ █████╗ ███████╗ ██████╗██████╗ ██╗   ██╗██████╗

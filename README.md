@@ -1,11 +1,25 @@
-# Image Meta Data Manipulator
+[![PyPI version](https://img.shields.io/pypi/v/metascrub)](https://pypi.org/project/metascrub/)
+[![Python versions](https://img.shields.io/pypi/pyversions/metascrub)](https://pypi.org/project/metascrub/)
+[![License](https://img.shields.io/pypi/l/metascrub)](https://github.com/fahimpyto/image-meta-data-manipulator/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-fahimpyto%2Fimage--meta--data--manipulator-blue)](https://github.com/fahimpyto/image-meta-data-manipulator)
 
-Strip AI metadata from images (ChatGPT, DALL-E, Midjourney, Stable Diffusion, ComfyUI, etc.) and optionally inject realistic camera EXIF or design-app metadata (Photoshop, Procreate, Canva, etc.).
+```
+███╗   ███╗███████╗████████╗ █████╗ ███████╗ ██████╗██████╗ ██╗   ██╗██████╗
+████╗ ████║██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔════╝██╔══██╗██║   ██║██╔══██╗
+██╔████╔██║█████╗     ██║   ███████║███████╗██║     ██████╔╝██║   ██║██████╔╝
+██║╚██╔╝██║██╔══╝     ██║   ██╔══██║╚════██║██║     ██╔══██╗██║   ██║██╔══██╗
+██║ ╚═╝ ██║███████╗   ██║   ██║  ██║███████║╚██████╗██║  ██║╚██████╔╝██████╔╝
+╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝
+```
 
-## Installation
+**Strip AI metadata from images** — ChatGPT, DALL-E, Midjourney, Stable Diffusion, ComfyUI, Adobe Firefly, and more. Optionally inject realistic camera EXIF or design-app metadata.
+
+---
+
+## 📦 Installation
 
 ```bash
-pip install git+https://github.com/fahimpyto/image-meta-data-manipulator.git
+pip install metascrub
 ```
 
 After installation, the `mtsb` command is available globally from any terminal.
@@ -13,10 +27,26 @@ After installation, the `mtsb` command is available globally from any terminal.
 To update:
 
 ```bash
-pip install --upgrade git+https://github.com/fahimpyto/image-meta-data-manipulator.git
+pip install --upgrade metascrub
 ```
 
-## Commands
+## 🚀 Quick Start
+
+```bash
+# Check if an image is AI-generated
+mtsb status image.png
+
+# Strip all AI metadata
+mtsb clean image.png
+
+# Strip + inject realistic camera EXIF
+mtsb clean image.png --organic
+
+# Strip + inject design-app metadata
+mtsb clean image.png --design
+```
+
+## 📋 Commands
 
 | Command   | Description                                           |
 |-----------|-------------------------------------------------------|
@@ -25,7 +55,7 @@ pip install --upgrade git+https://github.com/fahimpyto/image-meta-data-manipulat
 | `status`  | Quick check: is this image AI-generated?              |
 | `clean`   | Strip AI metadata and save to output folder           |
 
-## Usage
+## 💻 Usage
 
 ```bash
 # Interactive scan — shows numbered table, pick an image, then choose action
@@ -50,7 +80,7 @@ mtsb clean image.png --organic
 mtsb clean image.png --design
 ```
 
-## Interactive Scan Flow
+### ⌨️ Interactive Scan Flow
 
 ```
 > mtsb scan
@@ -73,15 +103,14 @@ mtsb clean image.png --design
   [5] Exit
 ```
 
-### Cancel / go back anytime
-
+**Navigation tips:**
 - Type **`b`** or **`c`** at any filename prompt to cancel and return to the previous menu
 - Press **`Ctrl+C`** at any prompt to cancel and go back
 - Press **`q`** at the scan selection to exit entirely
 
-## Features
+## ✨ Features
 
-### Deep C2PA Manifest Parsing
+### 🔍 Deep C2PA Manifest Parsing
 Images from ChatGPT, DALL-E, Adobe Firefly, and other C2PA-compliant tools embed a signed manifest. `mtsb info` extracts and displays:
 
 - **Software agent** (e.g. `gpt-image` → "ChatGPT (OpenAI)")
@@ -89,7 +118,7 @@ Images from ChatGPT, DALL-E, Adobe Firefly, and other C2PA-compliant tools embed
 - **Actions** (created, converted, watermarked)
 - **Timestamps**, certificates, signatures, and more
 
-### Accurate AI Tool Detection
+### 🎯 Accurate AI Tool Detection
 | Tool | Detected As |
 |------|-------------|
 | ChatGPT / DALL-E | `ChatGPT (OpenAI)` |
@@ -99,13 +128,19 @@ Images from ChatGPT, DALL-E, Adobe Firefly, and other C2PA-compliant tools embed
 | Adobe Firefly | `Adobe Firefly` |
 | Canva | Not AI — treated as human editing app |
 
-### Data Manipulation
-- **Auto Organic**: Random realistic camera profile (Canon, Nikon, Sony, Fujifilm, etc.) with matching shooting settings
-- **Custom Edit**: Manually type every EXIF field — make, model, lens, ISO, aperture, shutter speed, GPS, description, artist, copyright
-- **Design App**: Inject metadata mimicking Photoshop, Procreate, Clip Studio Paint, Krita, GIMP, Canva, etc.
+### 🛠️ Data Manipulation
+- **Auto Organic** — Random realistic camera profile (Canon, Nikon, Sony, Fujifilm, etc.) with matching shooting settings
+- **Custom Edit** — Manually type every EXIF field: make, model, lens, ISO, aperture, shutter speed, GPS, description, artist, copyright
+- **Design App** — Inject metadata mimicking Photoshop, Procreate, Clip Studio Paint, Krita, GIMP, Canva, etc.
 
-## Supported Formats
+## 🖼️ Supported Formats
 
-- PNG (including C2PA, text chunks, and EXIF)
-- JPEG / JPG
-- WebP
+| Format | Details |
+|--------|---------|
+| PNG | C2PA, text chunks, and EXIF |
+| JPEG / JPG | Full EXIF + XMP metadata |
+| WebP | Metadata support |
+
+## 📄 License
+
+[MIT](LICENSE)

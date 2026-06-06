@@ -2,7 +2,19 @@
 name = "metascrub"
 version = "0.1.0"
 description = "Strip AI metadata from images and optionally inject camera EXIF or Canva metadata"
+readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "fahimpyto", email = "fahimahmed2911bd@gmail.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "click>=8.0",
     "Pillow>=10.0",
@@ -10,6 +22,10 @@ dependencies = [
     "rich>=13.0",
     "cbor2>=6.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/fahimpyto/image-meta-data-manipulator"
+Repository = "https://github.com/fahimpyto/image-meta-data-manipulator"
 
 [build-system]
 requires = ["setuptools>=68.0"]

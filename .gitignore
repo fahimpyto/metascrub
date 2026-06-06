@@ -4,3 +4,6 @@ __pycache__/
 venv/
 .venv/
 *.exe
+metascrub.exe
+dist/
+build/

@@ -14,17 +14,14 @@ from metascrub.formatter import print_scan_results, print_image_info
 console = Console()
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(__version__, prog_name="mtsb")
-def cli():
-    """mtsb - Strip AI metadata from images.
-
-    Scans folders for AI-generated images (DALL-E, Midjourney,
-    ChatGPT, Stable Diffusion, etc.) and strips their metadata.
-
-    Optionally injects realistic camera EXIF or design-app metadata.
-    """
-    pass
+@click.pass_context
+def cli(ctx):
+    from metascrub.banner import print_banner
+    print_banner(console, __version__)
+    if ctx.invoked_subcommand is None:
+        click.echo(cli.get_help(ctx))
 
 
 @cli.command()

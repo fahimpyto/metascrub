@@ -73,7 +73,7 @@ def run_interactive_scan(console: Console, scan_path: Path, recursive: bool = Fa
         total = len(results)
         try:
             choice = click.prompt(
-                f"Select image #[bold]1-{total}[/bold] (or 'a' all, 'q' quit): ",
+                f"Select image #1-{total} (or 'a' all, 'q' quit): ",
                 default="", show_default=False
             ).strip().lower()
         except (KeyboardInterrupt, EOFError):
